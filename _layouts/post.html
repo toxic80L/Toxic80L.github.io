@@ -1,0 +1,20 @@
+---
+layout: default
+---
+
+<article>
+  <h2>{{ page.title }}</h2>
+  <time datetime="{{ page.date | date_to_xmlschema }}" class="by-line">{{ page.date | date_to_string }}</time>
+
+  {{ content }}
+</article>
+
+<!-- <script type="text/javascript">
+  document.addEventListener("DOMContentLoaded", function() {
+  var toc = document.querySelector('.sidebar');
+  var generatedToc = document.querySelector('#markdown-toc'); // 假设这是由{:toc}生成的大纲的ID
+  if (toc && generatedToc) {
+    toc.appendChild(generatedToc);
+  }
+  });
+</script> -->
