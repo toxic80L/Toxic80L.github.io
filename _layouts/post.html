@@ -5,8 +5,12 @@ layout: default
 <article>
   <h2>{{ page.title }}</h2>
   <time datetime="{{ page.date | date_to_xmlschema }}" class="by-line">{{ page.date | date_to_string }}</time>
-
+  <!-- <div class="head-background" style="background-image: url('/assets/head/{{ page.title | slugify }}.png');"> -->
+  <!-- </div> -->
+  <img src="/assets/head/{{ page.title | slugify }}.png" alt="描述性文字" class="float-img">
+  <!-- <img class="head-background" src="/assets/head/{{ page.title | slugify }}.png" alt="{{ page.title }}"> -->
   {{ content }}
+
 </article>
 
 <!-- <script type="text/javascript">

